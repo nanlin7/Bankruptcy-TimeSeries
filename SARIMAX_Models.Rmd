@@ -1,0 +1,394 @@
+---
+title: "Untitled"
+author: "Prakhar Agrawal"
+date: "12/7/2018"
+output: pdf_document
+---
+
+```{r setup, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readr)
+library(forecast)
+library(tseries)
+library(hydroGOF)
+library(car)
+```
+
+
+```{r}
+# read in data
+canada <- read_csv('Data/train.csv')
+canada_bk <- ts(canada$Bankruptcy_Rate, start=c(1987,1),end=c(2014,12),frequency=12)
+canada_uer <- ts(canada$Unemployment_Rate, start=c(1987,1),end=c(2014,12),frequency=12)
+canada_pop <- ts(canada$Population, start=c(1987,1),end=c(2014,12),frequency=12)
+canada_hpi <- ts(canada$House_Price_Index, start=c(1987,1),end=c(2014,12),frequency=12)
+```
+
+
+```{r}
+train <- canada_bk[time(canada_bk) < 2009]
+vad <- canada_bk[time(canada_bk) >= 2009]
+
+bk.train <- ts(train,start=c(1987,1),end=c(2008,12),frequency=12)
+bk.vad <- ts(vad,start=c(2009,1),end=c(2014,12),frequency=12)
+```
+
+
+```{r}
+train_uer <- canada_uer[time(canada_uer) < 2009]
+uer.train <- ts(train_uer,start=c(1987,1),end=c(2008,12),frequency=12)
+vad_uer <- canada_uer[time(canada_uer) >= 2009]
+uer.vad <- ts(vad_uer,start=c(2009,1),end=c(2014,12),frequency=12)
+
+train_pop <- canada_pop[time(canada_pop) < 2009]
+pop.train <- ts(train_pop,start=c(1987,1),end=c(2008,12),frequency=12)
+vad_pop <- canada_pop[time(canada_pop) >= 2009]
+pop.vad <- ts(vad_pop,start=c(2009,1),end=c(2014,12),frequency=12)
+
+train_hpi <- canada_hpi[time(canada_hpi) < 2009]
+hpi.train <- ts(train_hpi,start=c(1987,1),end=c(2008,12),frequency=12)
+vad_hpi <- canada_hpi[time(canada_hpi) >= 2009]
+hpi.vad <- ts(vad_hpi,start=c(2009,1),end=c(2014,12),frequency=12)
+```
+
+
+```{r}
+# take logs
+bk.train.log <- log(bk.train)
+bk.vad.log <- log(bk.vad)
+
+uer.train.log <- log(uer.train)
+uer.vad.log <- log(uer.vad)
+
+pop.train.log <- log(pop.train)
+pop.vad.log <- log(pop.vad)
+
+hpi.train.log <- log(hpi.train)
+hpi.vad.log <- log(hpi.vad)
+```
+
+
+```{r}
+par(mfrow=c(3,2))
+ccf(uer.train.log, pop.train.log, lag.max = 72)
+ccf(pop.train.log, bk.train.log, lag.max = 72)
+ccf(bk.train.log, hpi.train.log, lag.max = 72)
+ccf(uer.train.log, bk.train.log, lag.max = 72)
+ccf(pop.train.log, hpi.train.log, lag.max = 72)
+ccf(uer.train.log, hpi.train.log, lag.max = 72)
+```
+
+
+```{r}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter: Function
+loop_params <- function(df_train,df_vad){
+  if(TRUE){  
+    RMSE_value <- c()
+    p_par <- c()
+    q_par <- c()
+    P_par <- c()
+    Q_par <- c()
+    for (p in seq(0, 4, 1) ){
+      for (q in seq(0, 5 ,1) ){
+        for (P in seq(0, 5, 1) ){
+          for (Q in seq(0, 6, 1) ){
+            m <- arima(bk.train.log, order = c(p,1,q), seasonal = list(order = c(P,0,Q), period = 12), method = "CSS", xreg = df_train)
+            m_pred <- forecast(m, h = 72, level=c(95),xreg = df_vad)
+            RMSE <- sqrt(mean((exp(m_pred[[4]]) - bk.vad)^2))
+            RMSE_value <- c(RMSE_value, RMSE)
+            p_par <- c(p_par, p)
+            q_par <- c(q_par, q)
+            P_par <- c(P_par, P)
+            Q_par <- c(Q_par, Q)
+            
+          }
+        }
+      }
+    }
+#    final_df = data.frame(p_par, q_par, P_par, Q_par, RMSE_value)
+    index <- which(RMSE_value == min(RMSE_value))
+    cat (p_par[index], q_par[index], P_par[index], Q_par[index],RMSE_value[index])
+  }
+}
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With HPI as external variable
+df_train <- data.frame(hpi.train.log)
+df_vad <- data.frame(hpi.vad.log)
+
+loop_params(df_train,df_vad)
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Unemployment Rate as external variable
+df_train <- data.frame(uer.train.log)
+df_vad <- data.frame(uer.vad.log)
+
+loop_params(df_train,df_vad)
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Population as external variable
+df_train <- data.frame(pop.train.log)
+df_vad <- data.frame(pop.vad.log)
+
+loop_params(df_train,df_vad)
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With HPI, Population as external variables
+df_train <- data.frame(hpi.train.log, pop.train.log)
+df_vad <- data.frame(hpi.vad.log, pop.vad.log)
+
+loop_params(df_train,df_vad)
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Unemployment Rate, Population as external variables
+df_train <- data.frame(uer.train.log, pop.train.log)
+df_vad <- data.frame(uer.vad.log, pop.vad.log)
+
+loop_params(df_train,df_vad)
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Unemployment Rate, HPI as external variables
+df_train <- data.frame(uer.train.log, hpi.train.log)
+df_vad <- data.frame(uer.vad.log, hpi.vad.log)
+
+loop_params(df_train,df_vad)
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Unemployment Rate, Population and HPI as external variables
+if(TRUE){  
+  RMSE_value <- c()
+  p_par <- c()
+  q_par <- c()
+  P_par <- c()
+  Q_par <- c()
+  for (p in seq(0, 4, 1) ){
+    for (q in seq(0, 5 ,1) ){
+      for (P in seq(0, 5, 1) ){
+        for (Q in seq(0, 6, 1) ){
+          m <- arima(bk.train.log, order = c(p,1,q), seasonal = list(order = c(P,0,Q), period = 12), method = "CSS", xreg = data.frame(uer.train.log, pop.train.log, hpi.train.log))
+          m_pred <- forecast(m, h = 72, level=c(95),xreg = data.frame(uer.vad.log, pop.vad.log, hpi.vad.log))
+          RMSE <- sqrt(mean((exp(m_pred[[4]]) - bk.vad)^2))
+          RMSE_value <- c(RMSE_value, RMSE)
+          p_par <- c(p_par, p)
+          q_par <- c(q_par, q)
+          P_par <- c(P_par, P)
+          Q_par <- c(Q_par, Q)
+        }
+      }
+    }
+  }
+  final_df = data.frame(p_par, q_par, P_par, Q_par, RMSE_value)
+  index <- which(RMSE_value == min(RMSE_value))
+  cat (p_par[index], q_par[index], P_par[index], Q_par[index],RMSE_value[index])
+}
+```
+
+
+```{r}
+bk.train.48 <- ts(train[49:264],start=c(1991,1),end=c(2008,12),frequency=12)
+bk.train.48.log <- log(bk.train.48)
+
+train_uer.48 <- canada_uer[time(canada_uer) < 2005]
+uer.train.48 <- ts(train_uer,start=c(1987,1),end=c(2004,12),frequency=12)
+vad_uer.48 <- canada_uer[time(canada_uer) >= 2005]
+uer.vad.48 <- ts(vad_uer,start=c(2005,1),end=c(2010,12),frequency=12)
+
+uer.train.48.log <- log(uer.train.48)
+uer.vad.48.log <- log(uer.vad.48)
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Unemployment Rate (lag 48) as external variable
+if(TRUE){  
+    RMSE_value <- c()
+    p_par <- c()
+    q_par <- c()
+    P_par <- c()
+    Q_par <- c()
+    for (p in seq(0, 4, 1) ){
+      for (q in seq(0, 5 ,1) ){
+        for (P in seq(0, 5, 1) ){
+          for (Q in seq(0, 6, 1) ){
+            m <- arima(bk.train.48.log, order = c(p,1,q), seasonal = list(order = c(P,0,Q), period = 12), method = "CSS", xreg = data.frame(uer.train.48.log))
+            m_pred <- forecast(m, h = 72, level=c(95),xreg = data.frame(uer.vad.48.log))
+            RMSE <- sqrt(mean((exp(m_pred[[4]]) - bk.vad)^2))
+            RMSE_value <- c(RMSE_value, RMSE)
+            p_par <- c(p_par, p)
+            q_par <- c(q_par, q)
+            P_par <- c(P_par, P)
+            Q_par <- c(Q_par, Q)
+            
+          }
+        }
+      }
+    }
+    final_df = data.frame(p_par, q_par, P_par, Q_par, RMSE_value)
+    index <- which(RMSE_value == min(RMSE_value))
+    cat (p_par[index], q_par[index], P_par[index], Q_par[index],RMSE_value[index])
+  }
+```
+
+
+```{r}
+hpi.train.48 <- ts(canada_hpi[49:264],start=c(1991,1),end=c(2008,12),frequency=12)
+hpi.train.48.log <- log(hpi.train.48)
+
+pop.train.48 <- ts(canada_pop[49:264],start=c(1991,1),end=c(2008,12),frequency=12)
+pop.train.48.log <- log(pop.train.48)
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Unemployment Rate (lag 48) and HPI as external variables
+if(TRUE){  
+    RMSE_value <- c()
+    p_par <- c()
+    q_par <- c()
+    P_par <- c()
+    Q_par <- c()
+    for (p in seq(0, 4, 1) ){
+      for (q in seq(0, 5 ,1) ){
+        for (P in seq(0, 5, 1) ){
+          for (Q in seq(0, 6, 1) ){
+            m <- arima(bk.train.48.log, order = c(p,1,q), seasonal = list(order = c(P,0,Q), period = 12), method = "CSS", xreg = data.frame(uer.train.48.log,hpi.train.48.log))
+            m_pred <- forecast(m, h = 72, level=c(95),xreg = data.frame(uer.vad.48.log,hpi.vad.log))
+            RMSE <- sqrt(mean((exp(m_pred[[4]]) - bk.vad)^2))
+            RMSE_value <- c(RMSE_value, RMSE)
+            p_par <- c(p_par, p)
+            q_par <- c(q_par, q)
+            P_par <- c(P_par, P)
+            Q_par <- c(Q_par, Q)
+            
+          }
+        }
+      }
+    }
+    final_df = data.frame(p_par, q_par, P_par, Q_par, RMSE_value)
+    index <- which(RMSE_value == min(RMSE_value))
+    cat (p_par[index], q_par[index], P_par[index], Q_par[index],RMSE_value[index])
+  }
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Unemployment Rate (lag 48) and Population as external variables
+if(TRUE){  
+    RMSE_value <- c()
+    p_par <- c()
+    q_par <- c()
+    P_par <- c()
+    Q_par <- c()
+    for (p in seq(0, 6, 1) ){
+      for (q in seq(0, 7 ,1) ){
+        for (P in seq(0, 7, 1) ){
+          for (Q in seq(0, 8, 1) ){
+            m <- arima(bk.train.48.log, order = c(p,1,q), seasonal = list(order = c(P,0,Q), period = 12), method = "CSS", xreg = data.frame(uer.train.48.log,pop.train.48.log))
+            m_pred <- forecast(m, h = 72, level=c(95),xreg = data.frame(uer.vad.48.log,pop.vad.log))
+            RMSE <- sqrt(mean((exp(m_pred[[4]]) - bk.vad)^2))
+            RMSE_value <- c(RMSE_value, RMSE)
+            p_par <- c(p_par, p)
+            q_par <- c(q_par, q)
+            P_par <- c(P_par, P)
+            Q_par <- c(Q_par, Q)
+            
+          }
+        }
+      }
+    }
+    final_df = data.frame(p_par, q_par, P_par, Q_par, RMSE_value)
+    index <- which(RMSE_value == min(RMSE_value))
+    cat (p_par[index], q_par[index], P_par[index], Q_par[index],RMSE_value[index])
+  }
+```
+
+
+```{r warning=FALSE}
+# Use RMSE as metric to loop through p, P, q, Q to choose the optimal parameter
+# With Unemployment Rate (lag 48), Population and HPI as external variables
+if(TRUE){  
+    RMSE_value <- c()
+    p_par <- c()
+    q_par <- c()
+    P_par <- c()
+    Q_par <- c()
+    for (p in seq(0, 4, 1) ){
+      for (q in seq(0, 5 ,1) ){
+        for (P in seq(0, 5, 1) ){
+          for (Q in seq(0, 6, 1) ){
+            m <- arima(bk.train.48.log, order = c(p,1,q), seasonal = list(order = c(P,0,Q), period = 12), method = "CSS", xreg = data.frame(uer.train.48.log,hpi.train.48.log,pop.train.48.log))
+            m_pred <- forecast(m, h = 72, level=c(95),xreg = data.frame(uer.vad.48.log,hpi.vad.log,pop.vad.log))
+            RMSE <- sqrt(mean((exp(m_pred[[4]]) - bk.vad)^2))
+            RMSE_value <- c(RMSE_value, RMSE)
+            p_par <- c(p_par, p)
+            q_par <- c(q_par, q)
+            P_par <- c(P_par, P)
+            Q_par <- c(Q_par, Q)
+            
+          }
+        }
+      }
+    }
+    final_df = data.frame(p_par, q_par, P_par, Q_par, RMSE_value)
+    index <- which(RMSE_value == min(RMSE_value))
+    cat (p_par[index], q_par[index], P_par[index], Q_par[index],RMSE_value[index])
+  }
+```
+
+
+```{r}
+#3 4 3 2
+m <- arima(bk.train.log, order = c(3,1,4), seasonal = list(order = c(3,0,2), period = 12), method = "CSS", xreg = data.frame(uer.train.log))
+m_pred <- forecast(m, h = 72, level=c(95),xreg = data.frame(uer.vad.log))
+
+fit <- exp(m_pred$mean)
+lowerB <- exp(m_pred$lower)
+upperB <- exp(m_pred$upper)
+```
+
+
+```{r}
+plot(canada_bk,xlim=c(1987, 2015),ylim=c(0,6),main='Bankruptcy Rate from 1987 to 2014',xlab='Year', ylab='')
+tmp <- seq(from = 2009, by = 1/12, length = 72)
+polygon(x= c(tmp,rev(tmp)),y= c(upperB,rev(lowerB)), col="lightgrey", border=NA)
+points(fit,type='l',lwd=0.8,lty = 2,col='red')
+points(lowerB,type='l',col='grey')
+points(upperB,type = 'l',col='grey')
+points(bk.vad,type='l',lwd=0.6,col='blue')
+legend(1987, 5, legend=c("1987 Jan - 2008 Dec [Actual]","2009 Jan - 2014 Dec [Validation]","2009 Jan - 2014 Dec [Predicted]"),col=c("black","blue","red"), lty=c(1,1,2), cex=0.7)
+```
+
+
+```{r}
+acf(bk.train, lag.max = 72)
+pacf(bk.train, lag.max = 72)
+```
+
