@@ -1,4 +1,4 @@
-# Bankruptcy TimeSeries
+# Bankruptcy Time Series
 
 Time Series Analysis on Canada Bankruptcy Rate
 
