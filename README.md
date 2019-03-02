@@ -1,6 +1,6 @@
 # Bankruptcy Time Series
 
-[Time Series Analysis on Canada Bankruptcy Rate]
+[Time Series Analysis on Canada Bankruptcy Rate](Canadian-bankruptcy-rate-predict.pdf)
 
 In this project, our goal for this project is to forecast monthly bankruptcy rates for Canada, personal not for companies. Being clearer, what percent of people in the population will file for bankruptcy every month. Why this is important? Well if this rate increases a lot, this means that a lot of people will file for bankruptcy, this will have a direct and important impact in the economy, because it means that loans and debts will not get paid, this will have a direct impact for banks and the stock market, which, whether we like it or not, run every country’s economy, so if they don’t do well, it is bad for everyone. So, if we are caught off guard by an increase of this rate, the economy will suffer greatly, and it might take a country a lot to recover from it (remember the US market crash of 2007).
 
