@@ -1,7 +1,8 @@
-# Bankruptcy Time Series
+# Canadian Bankruptcy Rate Forecasting
 
-[Time Series Analysis on Canada Bankruptcy Rate](Canadian-bankruptcy-rate-predict.pdf)
+[Final Report](Canadian-bankruptcy-rate-predict.pdf)
 
+### Project Overview
 In this project, our goal for this project is to forecast monthly bankruptcy rates for Canada, personal not for companies. Being clearer, what percent of people in the population will file for bankruptcy every month. Why this is important? Well if this rate increases a lot, this means that a lot of people will file for bankruptcy, this will have a direct and important impact in the economy, because it means that loans and debts will not get paid, this will have a direct impact for banks and the stock market, which, whether we like it or not, run every country’s economy, so if they don’t do well, it is bad for everyone. So, if we are caught off guard by an increase of this rate, the economy will suffer greatly, and it might take a country a lot to recover from it (remember the US market crash of 2007).
 
 Once we have our data split in these two groups, we will proceed to develop a model for the train data, and there are several different methodologies to do this (to develop a model). We will focus on 4: SARIMA, SARIMAX, Holt-Winters and VAR. In the final report, we will talk more about them and we will present the results we got from applying each methodology.
